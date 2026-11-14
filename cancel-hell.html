@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cancel Subscription (Please Don’t)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#fff7e6;--fg:#2b2118;--card:#ffffff;--ac:#e0541f;--mut:#7a6a58;--bd:#e6d6bd;--ok:#1f8a4c;--bad:#c4281c;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17120d;--fg:#f4e8d6;--card:#231b13;--ac:#ff7a45;--mut:#b4a28a;--bd:#3b2f22;--ok:#4cc27d;--bad:#ff6b5e}}
+:root[data-theme="dark"]{--bg:#17120d;--fg:#f4e8d6;--card:#231b13;--ac:#ff7a45;--mut:#b4a28a;--bd:#3b2f22;--ok:#4cc27d;--bad:#ff6b5e}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 Georgia,"Times New Roman",serif;min-height:100vh}
+header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--card);border-bottom:2px solid var(--bd);position:sticky;top:env(safe-area-inset-top,0px);z-index:5;flex-wrap:wrap}
+h1{font-size:18px;margin:0}
+.timers{font:600 14px ui-monospace,Menlo,monospace;display:flex;gap:14px}
+.timers .low{color:var(--bad)}
+main{max-width:720px;margin:0 auto;padding:20px 16px 90px}
+.card{background:var(--card);border:2px solid var(--bd);border-radius:14px;padding:22px}
+h2{margin:0 0 6px}
+p.sub{color:var(--mut);margin:0 0 14px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:2px solid var(--ac);background:var(--ac);color:#fff;padding:9px 16px}
+button.ghost{background:transparent;color:var(--fg);border-color:var(--bd)}
+button:disabled{opacity:.45;cursor:not-allowed}
+input,textarea{font:inherit;width:100%;padding:10px;border-radius:8px;border:2px solid var(--bd);background:var(--bg);color:var(--fg)}
+textarea{min-height:140px;resize:vertical}
+label{display:block;font-weight:600;margin:12px 0 4px}
+.msg{margin-top:12px;min-height:24px;font-weight:600}
+.msg.bad{color:var(--bad)}.msg.ok{color:var(--ok)}
+.arena{position:relative;height:300px;border:2px dashed var(--bd);border-radius:12px;overflow:hidden;margin-top:12px}
+#runner{position:absolute;left:10px;top:10px;font-size:13px;padding:6px 10px;background:transparent;color:var(--mut);border:1px solid var(--bd)}
+.big{font-size:20px;padding:16px 28px;display:block;margin:0 auto}
+.pet{font-size:90px;text-align:center;line-height:1.1}
+.opts{display:grid;gap:8px;margin-top:10px}
+.opts button{text-align:left}
+.opts button.sel{background:var(--ac);color:#fff}
+.toc{height:320px;overflow-y:auto;border:2px solid var(--bd);border-radius:10px;padding:12px;font-size:13px;color:var(--mut)}
+.toc p{margin:0 0 10px}
+.toc b{color:var(--fg)}
+.bee-ref{max-height:130px;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:8px;font-size:13px;color:var(--mut);user-select:none;margin-bottom:8px}
+.demo{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:2px solid var(--bd);padding:6px 10px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px;z-index:6}
+.demo button{padding:3px 8px;font-size:12px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:20;color:#fff;font-size:22px;text-align:center;padding:20px}
+.overlay.on{display:flex}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐝 BeeHive Premium™ — Account Settings</h1>
+  <div class="timers"><span id="tTotal">5:00</span><span id="tIdle">idle 15</span></div>
+</header>
+<main><div id="view"></div></main>
+<div class="demo"><b>DEMO:</b><span id="jumps"></span>
+  <label style="display:inline;margin:0 0 0 8px"><input type="checkbox" id="pause" style="width:auto"> pause timers</label></div>
+<div class="overlay" id="ov"></div>
+<div id="set" style="display:none;position:fixed;top:calc(56px + env(safe-area-inset-top,0px));right:10px;z-index:30;width:min(340px,92vw);background:var(--card);border:2px solid var(--bd);border-radius:12px;padding:14px;font-size:13px">
+<b>AI judge settings</b>
+<label>Gemini API key</label><input id="gkey" type="password" placeholder="AIza…" autocomplete="off">
+<label>Gemini model</label><input id="gmodel" value="gemini-2.5-flash">
+<p class="sub" style="margin:8px 0">With a key set, Gemini judges the apology and the form. With no key, Claude judges through the page. If both fail, a simple local check is used. The published preview blocks calls to Google, so for Gemini open this file locally or host it yourself. The key stays in this browser only.</p>
+<label>Typing-test script (.txt file)</label><input id="bfile" type="file" accept=".txt,text/plain" style="padding:6px"><div class="sub" id="bres" style="margin:4px 0 8px">Using the short placeholder.</div>
+<button id="gsave">Save</button> <button class="ghost" id="gtest">Test</button> <span id="gres"></span></div>
+
+<script>
+// ===== CONFIG (tweak for your demo) =====
+var CFG = {
+  totalSeconds: 300,      // whole-process time limit
+  idleSeconds: 15,        // mouse-idle timeout
+  keyboardCountsAsActive: false, // true = typing also keeps you "active"
+  startStep: 0,           // 0 = start with the moving button screen, 1 = skip it (demo)
+  minApology: 200,
+  geminiApiKey: "",       // optional: hardcode a Gemini key here (or use the ⚙ AI panel)
+  geminiModel: "gemini-2.5-flash",
+  rhythmPass: 0.75,       // accuracy needed in the rhythm game
+  // Paste the full script here yourself. A short stand-in is used so this file stays small.
+  beeScript: `According to all known laws of aviation, there is no way a bee should be able to fly. Its wings are too small to get its fat little body off the ground. The bee, of course, flies anyway because bees don't care what humans think is impossible. Yellow, black. Yellow, black. Yellow, black. Yellow, black. Ooh, black and yellow! Let's shake it up a little. Barry! Breakfast is ready! Coming! Hang on a second. Hello? - Barry? - Adam? - Can you believe this is happening? - I can't. I'll pick you up. Looking sharp. Use the stairs. Your father paid good money for those. Sorry. I'm excited. Here's the graduate. We're very proud of you, son. A perfect report card, all B's. Very proud. Ma! I got a thing going here. - You got lint on your fuzz. - Ow! That's me! - Wave to us! We'll be in row 118,000. - Bye! Barry, I told you, stop flying in the house! - Hey, Adam. - Hey, Barry. - Is that fuzz gel? - A little. Special day, graduation. Never thought I'd make it. Three days grade school, three days high school. Those were awkward. Three days college. I'm glad I took a day and hitchhiked around the hive. You did come back different. - Hi, Barry. - Artie, growing a mustache? Looks good. - Hear about Frankie? - Yeah. - You going to the funeral? - No, I'm not going. Everybody knows, sting someone, you die. Don't waste it on a squirrel. Such a hothead. I guess he could have just gotten out of the way. I love this incorporating an amusement park into our day. That's why we don't need vacations. Boy, quite a bit of pomp... under the circumstances. - Well, Adam, today we are men. - We are! - Bee-men. - Amen! Hallelujah! Students, faculty, distinguished bees, please welcome Dean Buzzwell. Welcome, New Hive City graduating class of... ...9:15. That concludes our ceremonies. And begins your career at Honex Industries! Will we pick ourjob today? I heard it's just orientation. Heads up! Here we go. Keep your hands and antennas inside the tram at all times. - Wonder what it'll be like? - A little scary. Welcome to Honex, a division of Honesco and a part of the Hexagon Group. This is it! Wow. Wow. We know that you, as a bee, have worked your whole life to get to the point where you can work for your whole life. Honey begins when our valiant Pollen Jocks bring the nectar to the hive. Our top-secret formula is automatically color-corrected, scent-adjusted and bubble-contoured into this soothing sweet syrup with its distinctive golden glow you know as... Honey! - That girl was hot. - She's my cousin! - She is? - Yes, we're all cousins. - Right. You're right. - At Honex, we constantly strive to improve every aspect of bee existence. These bees are stress-testing a new helmet technology. - What do you think he makes? - Not enough. Here we have our latest advancement, the Krelman. - What does that do? - Catches that little strand of honey that hangs after you pour it. Saves us millions. Can anyone work on the Krelman? Of course. Most bee jobs are small ones. But bees know that every small job, if it's done well, means a lot. But choose carefully because you'll stay in the job you pick for the rest of your life. The same job the rest of your life? I didn't know that. What's the difference? You'll be happy to know that bees, as a species, haven't had one day off in 27 million years. So you'll just work us to death? We'll sure try. Wow! That blew my mind! "What's the difference?" How can you say that? One job forever? That's an insane choice to have to make. I'm relieved. Now we only have to make one decision in life. But, Adam, how could they never have told us that? Why would you question anything? We're bees. We're the most perfectly functioning society on Earth. You ever think maybe things work a little too well here? Like what? Give me one example. I don't know. But you know what I'm talking about. Please clear the gate. Royal Nectar Force on approach. Wait a second. Check it out. - Hey, those are Pollen Jocks! - Wow. I've never seen them this close. They know what it's like outside the hive. Yeah, but some don't come back. - Hey, Jocks! - Hi, Jocks! You guys did great! You're monsters! You're sky freaks! I love it! I love it! - I wonder where they were. - I don't know. Their day's not planned. Outside the hive, flying who knows where, doing who knows what. You can't just decide to be a Pollen Jock. You have to be bred for that. Right. Look. That's more pollen than you and I will see in a lifetime. It's just a status symbol. Bees make too much of it. Perhaps. Unless you're wearing it and the ladies see you wearing it. Those ladies? Aren't they our cousins too? Distant. Distant. Look at these two. - Couple of Hive Harrys. - Let's have fun with them. It must be dangerous being a Pollen Jock. Yeah. Once a bear pinned me against a mushroom! He had a paw on my throat, and with the other, he was slapping me! - Oh, my! - I never thought I'd knock him out. What were you doing during this? Trying to alert the authorities. I can autograph that. A little gusty out there today, wasn't it, comrades? Yeah. Gusty. We're hitting a sunflower patch six miles from here tomorrow. - Six miles, huh? - Barry! A puddle jump for us, but maybe you're not up for it. - Maybe I am. - You are not! We're going 0900 at J-Gate. What do you think, buzzy-boy? Are you bee enough? I might be. It all depends on what 0900 means. Hey, Honex! Dad, you surprised me. You decide what you're interested in? - Well, there's a lot of choices. - But you only get one. Do you ever get bored doing the same job every day? Son, let me tell you about stirring. You grab that stick, and you just move it around, and you stir it around. You get yourself into a rhythm. It's a beautiful thing. You know, Dad, the more I think about it, maybe the honey field just isn't right for me. You were thinking of what, making balloon animals? That's a bad job for a guy with a stinger. Janet, your son's not sure he wants to go into honey! - Barry, you are so funny sometimes. - I'm not trying to be funny. You're not funny! You're going into honey. Our son, the stirrer! - You're gonna be a stirrer? - No one's listening to me! Wait till you see the sticks I have. I could say anything right now. I'm gonna get an ant tattoo! Let's open some honey and celebrate! Maybe I'll pierce my thorax. Shave my antennae. Shack up with a grasshopper. Get a gold tooth and call everybody "dawg"! I'm so proud. - We're starting work today! - Today's the day. Come on! All the good jobs will be gone. Yeah, right. Pollen counting, stunt bee, pouring, stirrer, front desk, hair removal... - Is it still available? - Hang on. Two left! One of them's yours! Congratulations! Step to the side. - What'd you get? - Picking crud out. Stellar! Wow! Oouple of newbies? Yes, sir! Our first day! We are ready! Make your choice. - You want to go first? - No, you go. Oh, my. What's available? Restroom attendant's open, not for the reason you think. - Any chance of getting the Krelman? - Sure, you're on. I'm sorry, the Krelman just closed out. Wax monkey's always open. The Krelman opened up again. What happened? A bee died. Makes an opening. See? He's dead. Another dead one. Deady. Deadified. Two more dead. Dead from the neck up. Dead from the neck down. That's life! Oh, this is so hard! Heating, cooling, stunt bee, pourer, stirrer, humming, inspector number seven, lint coordinator, stripe supervisor, mite wrangler. Barry, what do you think I should... Barry? Barry! All right, we've got the sunflower patch in quadrant nine... What happened to you? Where are you? - I'm going out. - Out? Out where? - Out there. - Oh, no! I have to, before I go to work for the rest of my life. You're gonna die! You're crazy! Hello? Another call coming in. If anyone's feeling brave, there's a Korean deli on 83rd that gets their roses today. Hey, guys. - Look at that. - Isn't that the kid we saw yesterday? Hold it, son, flight deck's restricted. It's OK, Lou. We're gonna take him up. Really? Feeling lucky, are you? Sign here, here. Just initial that. - Thank you. - OK. You got a rain advisory today, and as you all know, bees cannot fly in rain. So be careful. As always, watch your brooms, hockey sticks, dogs, birds, bears and bats. Also, I got a couple of reports of root beer being poured on us. Murphy's in a home because of it, babbling like a cicada! - That's awful. - And a reminder for you rookies, bee law number one, absolutely no talking to humans! All right, launch positions! Buzz, buzz, buzz, buzz! Buzz, buzz, buzz, buzz! Buzz, buzz, buzz, buzz! Black and yellow! Hello! You ready for this, hot shot? Yeah. Yeah, bring it on. Wind, check. - Antennae, check. - Nectar pack, check. - Wings, check. - Stinger, check. Scared out of my shorts, check. OK, ladies, let's move it out! Pound those petunias, you striped stem-suckers! All of you, drain those flowers! Wow! I'm out! I can't believe I'm out! So blue. I feel so fast and free! Box kite! Wow! Flowers! This is Blue Leader. We have roses visual. Bring it around 30 degrees and hold. Roses! 30 degrees, roger. Bringing it around. Stand to the side, kid. It's got a bit of a kick. That is one nectar collector! - Ever see pollination up close? - No, sir. I pick up some pollen here, sprinkle it over here. Maybe a dash over there, a pinch on that one. See that? It's a little bit of magic. That's amazing. Why do we do that? That's pollen power. More pollen, more flowers, more nectar, more honey for us. Cool. I'm picking up a lot of bright yellow. Could be daisies. Don't we need those?  that visual. Wait. One of these flowers seems to be on the move. Say again? You're reporting a moving flower? Affirmative. That was on the line! This is the coolest. What is it? I don't know, but I'm loving this color. It smells good. Not like a flower, but I like it. Yeah, fuzzy. Chemical-y. Careful, guys. It's a little grabby. My sweet lord of bees! Candy-brain, get off there! Problem! - Guys! - This could be bad. Affirmative. Very close. Gonna hurt. Mama's little boy. You are way out of position, rookie! Coming in at you like a missile! Help me! I don't think these are flowers. - Should we tell him? - I think he knows. What is this?! Match point! You can start packing up, honey, because you're about to eat it! Yowser! Gross. There's a bee in the car! - Do something! - I'm driving! - Hi, bee. - He's back here! He's going to sting me! Nobody move. If you don't move, he won't sting you. Freeze! He blinked! Spray him, Granny! What are you doing?! Wow... the tension level out here is unbelievable. I gotta get home. Can't fly in rain. Can't fly in rain. Can't fly in rain. Mayday! Mayday! Bee going down! Ken, could you close the window please? Ken, could you close the window please? Check out my new resume. I made it into a fold-out brochure. You see? Folds out. Oh, no. More humans. I don't need this. What was that? Maybe this time. This time. This time. This time! This time! This... Drapes! That is diabolical. It's fantastic. It's got all my special skills, even my top-ten favorite movies. What's number one? Star Wars? Nah, I don't go for that... ...kind of stuff. No wonder we shouldn't talk to them. They're out of their minds. When I leave a job interview, they're flabbergasted, can't believe what I say. There's the sun. Maybe that's a way out. I don't remember the sun having a big 75 on it. I predicted global warming. I could feel it getting hotter. At first I thought it was just me. Wait! Stop! Bee! Stand back. These are winter boots. Wait! Don't kill him! You know I'm allergic to them! This thing could kill me! Why does his life have less value than yours? Why does his life have any less value than mine? Is that your statement? I'm just saying all life has value. You don't know what he's capable of feeling. My brochure! There you go, little guy. I'm not scared of him. It's an allergic thing. Put that on your resume brochure. My whole face could puff up. Make it one of your special skills. Knocking someone out is also a special skill. Right. Bye, Vanessa. Thanks. - Vanessa, next week? Yogurt night? - Sure, Ken. You know, whatever. - You could put carob chips on there. - Bye. - Supposed to be less calories. - Bye. I gotta say something. She saved my life. I gotta say something. All right, here it goes. Nah. What would I say? I could really get in trouble. It's a bee law. You're not supposed to talk to a human. I can't believe I'm doing this. I've got to. Oh, I can't do it. Come on! No. Yes. No. Do it. I can't. How should I start it? "You like jazz?" No, that's no good. Here she comes! Speak, you fool! Hi! I'm sorry. - You're talking. - Yes, I know. You're talking! I'm so sorry. No, it's OK. It's fine. I know I'm dreaming. But I don't recall going to bed. Well, I'm sure this is very disconcerting. This is a bit of a surprise to me. I mean, you're a bee! I am. And I'm not supposed to be doing this, but they were all trying to kill me. And if it wasn't for you... I had to thank you. It's just how I was raised. That was a little weird. - I'm talking with a bee. - Yeah. I'm talking to a bee. And the bee is talking to me! I just want to say I'm grateful. I'll leave now. - Wait! How did you learn to do that? - What? The talking thing. Same way you did, I guess. "Mama, Dada, honey." You pick it up. - That's very funny. - Yeah. Bees are funny. If we didn't laugh, we'd cry with what we have to deal with. Anyway... Can I... ...get you something? - Like what? I don't know. I mean... I don't know. Coffee? I don't want to put you out. It's no trouble. It takes two minutes. - It's just coffee. - I hate to impose. - Don't be ridiculous! - Actually, I would love a cup. Hey, you want rum cake? - I shouldn't. - Have some. - No, I can't. - Come on! I'm trying to lose a couple micrograms. - Where? - These stripes don't help. You look great! I don't know if you know anything about fashion. Are you all right? No. He's making the tie in the cab as they're flying up Madison. He finally gets there. He runs up the steps into the church. The wedding is on. And he says, "Watermelon? I thought you said Guatemalan. Why would I marry a watermelon?" Is that a bee joke? That's the kind of stuff we do. Yeah, different. So, what are you gonna do, Barry? About work? I don't know. I want to do my part for the hive, but I can't do it the way they want. I know how you feel. - You do? - Sure. My parents wanted me to be a lawyer or a doctor, but I wanted to be a florist. - Really? - My only interest is flowers. Our new queen was just elected with that same campaign slogan. Anyway, if you look... There's my hive right there. See it? You're in Sheep Meadow! Yes! I'm right off the Turtle Pond! No way! I know that area. I lost a toe ring there once. - Why do girls put rings on their toes? - Why not? - It's like putting a hat on your knee. - Maybe I'll try that. - You all right, ma'am? - Oh, yeah. Fine. Just having two cups of coffee! Anyway, this has been great. Thanks for the coffee. Yeah, it's no trouble. Sorry I couldn't finish it. If I did, I'd be up the rest of my life. Are you...? Can I take a piece of this with me? Sure! Here, have a crumb. - Thanks! - Yeah. All right. Well, then... I guess I'll see you around. Or not. OK, Barry. And thank you so much again... for before. Oh, that? That was nothing. Well, not nothing, but... Anyway... This can't possibly work. He's all set to go. We may as well try it. OK, Dave, pull the chute. - Sounds amazing. - It was amazing! It was the scariest, happiest moment of my life. Humans! I can't believe you were with humans! Giant, scary humans! What were they like? Huge and crazy. They talk crazy. They eat crazy giant things. They drive crazy. - Do they try and kill you, like on TV? - Some of them. But some of them don't. - How'd you get back? - Poodle. You did it, and I'm glad. You saw whatever you wanted to see. You had your "experience." Now you can pick out yourjob and be normal. - Well... - Well? Well, I met someone. You did? Was she Bee-ish? - A wasp?! Your parents will kill you! - No, no, no, not a wasp. - Spider? - I'm not attracted to spiders. I know it's the hottest thing, with the eight legs and all. I can't get by that face. So who is she? She's... human. No, no. That's a bee law. You wouldn't break a bee law. - Her name's Vanessa. - Oh, boy. She's so nice. And she's a florist! Oh, no! You're dating a human florist! We're not dating. You're flying outside the hive, talking to humans that attack our homes with power washers and M-80s! One-eighth a stick of dynamite! She saved my life! And she understands me. This is over! Eat this. This is not over! What was that? - They call it a crumb. - It was so stingin' stripey! And that's not what they eat. That's what falls off what they eat! - You know what a Cinnabon is? - No. It's bread and cinnamon and frosting. They heat it up... Sit down! ...really hot! - Listen to me! We are not them! We're us. There's us and there's them! Yes, but who can deny the heart that is yearning? There's no yearning. Stop yearning. Listen to me! You have got to start thinking bee, my friend. Thinking bee! - Thinking bee. - Thinking bee. Thinking bee! Thinking bee! Thinking bee! Thinking bee! There he is. He's in the pool. You know what your problem is, Barry? I gotta start thinking bee? How much longer will this go on? It's been three days! Why aren't you working? I've got a lot of big life decisions to think about. What life? You have no life! You have no job. You're barely a bee! Would it kill you to make a little honey? Barry, come out. Your father's talking to you. Martin, would you talk to him? Barry, I'm talking to you! You coming? Got everything? All set! Go ahead. I'll catch up. Don't be too long. Watch this! Vanessa! - We're still here. - I told you not to yell at him. He doesn't respond to yelling! - Then why yell at me? - Because you don't listen! I'm not listening to this. Sorry, I've gotta go. - Where are you going? - I'm meeting a friend. A girl? Is this why you can't decide? Bye. I just hope she's Bee-ish. They have a huge parade of flowers every year in Pasadena? To be in the Tournament of Roses, that's every florist's dream! Up on a float, surrounded by flowers, crowds cheering. A tournament. Do the roses compete in athletic events? No. All right, I've got one. How come you don't fly everywhere? It's exhausting. Why don't you run everywhere? It's faster. Yeah, OK, I see, I see. All right, your turn. TiVo. You can just freeze live TV? That's insane! You don't have that? We have Hivo, but it's a disease. It's a horrible, horrible disease. Oh, my. Dumb bees! You must want to sting all those jerks. We try not to sting. It's usually fatal for us. So you have to watch your temper. Very carefully. You kick a wall, take a walk, write an angry letter and throw it out. Work through it like any emotion: Anger, jealousy, lust. Oh, my goodness! Are you OK? Yeah. - What is wrong with you?! - It's a bug. He's not bothering anybody. Get out of here, you creep! What was that? A Pic 'N' Save circular? Yeah, it was. How did you know? It felt like about 10 pages. Seventy-five is pretty much our limit. You've really got that down to a science. - I lost a cousin to Italian Vogue. - I'll bet. What in the name of Mighty Hercules is this? How did this get here? Cute Bee, Golden Blossom, Ray Liotta Private Select? - Is he that actor? - I never heard of him. - Why is this here? - For people. We eat it. You don't have enough food of your own? - Well, yes. - How do you get it? - Bees make it. - I know who makes it! And it's hard to make it! There's heating, cooling, stirring. You need a whole Krelman thing! - It's organic. - It's our-ganic! It's just honey, Barry. Just what?! Bees don't know about this! This is stealing! A lot of stealing! You've taken our homes, schools, hospitals! This is all we have! And it's on sale?! I'm getting to the bottom of this. I'm getting to the bottom of all of this! Hey, Hector. - You almost done? - Almost. He is here. I sense it. Well, I guess I'll go home now and just leave this nice honey out, with no one around. You're busted, box boy! I knew I heard something. So you can talk! I can talk. And now you'll start talking! Where you getting the sweet stuff? Who's your supplier? I don't understand. I thought we were friends. The last thing we want to do is upset bees! You're too late! It's ours now! You, sir, have crossed the wrong sword! You, sir, will be lunch for my iguana, Ignacio! Where is the honey coming from? Tell me where! Honey Farms! It comes from Honey Farms! Crazy person! What horrible thing has happened here? These faces, they never knew what hit them. And now they're on the road to nowhere! Just keep still. What? You're not dead? Do I look dead? They will wipe anything that moves. Where you headed? To Honey Farms. I am onto something huge here. I'm going to Alaska. Moose blood, crazy stuff. Blows your head off! I'm going to Tacoma. - And you? - He really is dead. All right. Uh-oh! - What is that?! - Oh, no! - A wiper! Triple blade! - Triple blade? Jump on! It's your only chance, bee! Why does everything have to be so doggone clean?! How much do you people need to see?! Open your eyes! Stick your head out the window! From NPR News in Washington, I'm Carl Kasell. But don't kill no more bugs! - Bee! - Moose blood guy!! - You hear something? - Like what? Like tiny screaming. Turn off the radio. Whassup, bee boy? Hey, Blood. Just a row of honey jars, as far as the eye could see. Wow! I assume wherever this truck goes is where they're getting it. I mean, that honey's ours. - Bees hang tight. - We're all jammed in. It's a close community. Not us, man. We on our own. Every mosquito on his own. - What if you get in trouble? - You a mosquito, you in trouble. Nobody likes us. They just smack. See a mosquito, smack, smack! At least you're out in the world. You must meet girls. Mosquito girls try to trade up, get with a moth, dragonfly. Mosquito girl don't want no mosquito. You got to be kidding me! Mooseblood's about to leave the building! So long, bee! - Hey, guys! - Mooseblood! I knew I'd catch y'all down here. Did you bring your crazy straw? We throw it in jars, slap a label on it, and it's pretty much pure profit. What is this place? A bee's got a brain the size of a pinhead. They are pinheads! Pinhead. - Check out the new smoker. - Oh, sweet. That's the one you want. The Thomas 3000! Smoker? Ninety puffs a minute, semi-automatic. Twice the nicotine, all the tar. A couple breaths of this knocks them right out. They make the honey, and we make the money. "They make the honey, and we make the money"? Oh, my! What's going on? Are you OK? Yeah. It doesn't last too long. Do you know you're in a fake hive with fake walls? Our queen was moved here. We had no choice. This is your queen? That's a man in women's clothes! That's a drag queen! What is this? Oh, no! There's hundreds of them! Bee honey. Our honey is being brazenly stolen on a massive scale! This is worse than anything bears have done! I intend to do something. Oh, Barry, stop. Who told you humans are taking our honey? That's a rumor. Do these look like rumors? That's a conspiracy theory. These are obviously doctored photos. How did you get mixed up in this? He's been talking to humans. - What? - Talking to humans?! He has a human girlfriend. And they make out! Make out? Barry! We do not. - You wish you could. - Whose side are you on? The bees! I dated a cricket once in San Antonio. Those crazy legs kept me up all night. Barry, this is what you want to do with your life? I want to do it for all our lives. Nobody works harder than bees! Dad, I remember you coming home so overworked your hands were still stirring. You couldn't stop. I remember that. What right do they have to our honey? We live on two cups a year. They put it in lip balm for no reason whatsoever! Even if it's true, what can one bee do? Sting them where it really hurts. In the face! The eye! - That would hurt. - No. Up the nose? That's a killer. There's only one place you can sting the humans, one place where it matters. Hive at Five, the hive's only full-hour action news source. No more bee beards! With Bob Bumble at the anchor desk. Weather with Storm Stinger. Sports with Buzz Larvi. And Jeanette Chung. - Good evening. I'm Bob Bumble. - And I'm Jeanette Chung. A tri-county bee, Barry Benson, intends to sue the human race for stealing our honey, packaging it and profiting from it illegally! Tomorrow night on Bee Larry King, we'll have three former queens here in our studio, discussing their new book, Classy Ladies, out this week on Hexagon. Tonight we're talking to Barry Benson. Did you ever think, "I'm a kid from the hive. I can't do this"? Bees have never been afraid to change the world. What about Bee Columbus? Bee Gandhi? Bejesus? Where I'm from, we'd never sue humans. We were thinking of stickball or candy stores. How old are you? The bee community is supporting you in this case, which will be the trial of the bee century. You know, they have a Larry King in the human world too. It's a common name. Next week... He looks like you and has a show and suspenders and colored dots... Next week... Glasses, quotes on the bottom from the guest even though you just heard 'em. Bear Week next week! They're scary, hairy and here live. Always leans forward, pointy shoulders, squinty eyes, very Jewish. In tennis, you attack at the point of weakness! It was my grandmother, Ken. She's 81. Honey, her backhand's a joke! I'm not gonna take advantage of that? Quiet, please. Actual work going on here. - Is that that same bee? - Yes, it is! I'm helping him sue the human race. - Hello. - Hello, bee. This is Ken. Yeah, I remember you. Timberland, size ten and a half. Vibram sole, I believe. Why does he talk again? Listen, you better go 'cause we're really busy working. But it's our yogurt night! Bye-bye. Why is yogurt night so difficult?! You poor thing. You two have been at this for hours! Yes, and Adam here has been a huge help. - Frosting... - How many sugars? Just one. I try not to use the competition. So why are you helping me? Bees have good qualities. And it takes my mind off the shop. Instead of flowers, people are giving balloon bouquets now. Those are great, if you're three. And artificial flowers. - Oh, those just get me psychotic! - Yeah, me too. Bent stingers, pointless pollination. Bees must hate those fake things! Nothing worse than a daffodil that's had work done. Maybe this could make up for it a little bit. - This lawsuit's a pretty big deal. - I guess. You sure you want to go through with it? Am I sure? When I'm done with the humans, they won't be able to say, "Honey, I'm home," without paying a royalty! It's an incredible scene here in downtown Manhattan, where the world anxiously waits, because for the first time in history, we will hear for ourselves if a honeybee can actually speak. What have we gotten into here, Barry? It's pretty big, isn't it? I can't believe how many humans don't work during the day. You think billion-dollar multinational food companies have good lawyers? Everybody needs to stay behind the barricade. - What's the matter? - I don't know, I just got a chill. Well, if it isn't the bee team. You boys work on this? All rise! The Honorable Judge Bumbleton presiding. All right. Case number 4475, Superior Court of New York, Barry Bee Benson v. the Honey Industry is now in session. Mr. Montgomery, you're representing the five food companies collectively? A privilege. Mr. Benson... you're representing all the bees of the world? I'm kidding. Yes, Your Honor, we're ready to proceed. Mr. Montgomery, your opening statement, please. Ladies and gentlemen of the jury, my grandmother was a simple woman. Born on a farm, she believed it was man's divine right to benefit from the bounty of nature God put before us. If we lived in the topsy-turvy world Mr. Benson imagines, just think of what would it mean. I would have to negotiate with the silkworm for the elastic in my britches! Talking bee! How do we know this isn't some sort of holographic motion-picture-capture Hollywood wizardry? They could be using laser beams! Robotics! Ventriloquism! Cloning! For all we know, he could be on steroids! Mr. Benson? Ladies and gentlemen, there's no trickery here. I'm just an ordinary bee. Honey's pretty important to me. It's important to all bees. We invented it! We make it. And we protect it with our lives. Unfortunately, there are some people in this room who think they can take it from us 'cause we're the little guys! I'm hoping that, after this is all over, you'll see how, by taking our honey, you not only take everything we have but everything we are! I wish he'd dress like that all the time. So nice! Call your first witness. So, Mr. Klauss Vanderhayden of Honey Farms, big company you have. I suppose so. I see you also own Honeyburton and Honron! Yes, they provide beekeepers for our farms. Beekeeper. I find that to be a very disturbing term. I don't imagine you employ any bee-free-ers, do you? - No. - I couldn't hear you. - No. - No. Because you don't free bees. You keep bees. Not only that, it seems you thought a bear would be an appropriate image for a jar of honey. They're very lovable creatures. Yogi Bear, Fozzie Bear, Build-A-Bear. You mean like this? Bears kill bees! How'd you like his head crashing through your living room?! Biting into your couch! Spitting out your throw pillows! OK, that's enough. Take him away. So, Mr. Sting, thank you for being here. Your name intrigues me. - Where have I heard it before? - I was with a band called The Police. But you've never been a police officer, have you? No, I haven't. No, you haven't. And so here we have yet another example of bee culture casually stolen by a human for nothing more than a prance-about stage name. Oh, please. Have you ever been stung, Mr. Sting? Because I'm feeling a little stung, Sting. Or should I say... Mr. Gordon M. Sumner! That's not his real name?! You idiots! Mr. Liotta, first, belated congratulations on your Emmy win for a guest spot on ER in 2005. Thank you. Thank you. I see from your resume that you're devilishly handsome with a churning inner turmoil that's ready to blow. I enjoy what I do. Is that a crime? Not yet it isn't. But is this what it's come to for you? Exploiting tiny, helpless bees so you don't have to rehearse your part and learn your lines, sir? Watch it, Benson! I could blow right now! This isn't a goodfella. This is a badfella! Why doesn't someone just step on this creep, and we can all go home?! - Order in this court! - You're all thinking it! Order! Order, I say! - Say it! - Mr. Liotta, please sit down! I think it was awfully nice of that bear to pitch in like that. I think the jury's on our side. Are we doing everything right, legally? I'm a florist. Right. Well, here's to a great team. To a great team! Well, hello. - Ken! - Hello. I didn't think you were coming. No, I was just late. I tried to call, but... the battery. I didn't want all this to go to waste, so I called Barry. Luckily, he was free. Oh, that was lucky. There's a little left. I could heat it up. Yeah, heat it up, sure, whatever. So I hear you're quite a tennis player. I'm not much for the game myself. The ball's a little grabby. That's where I usually sit. Right... there. Ken, Barry was looking at your resume, and he agreed with me that eating with chopsticks isn't really a special skill. You think I don't see what you're doing? I know how hard it is to find the rightjob. We have that in common. Do we? Bees have 100 percent employment, but we do jobs like taking the crud out. That's just what I was thinking about doing. Ken, I let Barry borrow your razor for his fuzz. I hope that was all right. I'm going to drain the old stinger. Yeah, you do that. Look at that. You know, I've just about had it with your little mind games. - What's that? - Italian Vogue. Mamma mia, that's a lot of pages. A lot of ads. Remember what Van said, why is your life more valuable than mine? Funny, I just can't seem to recall that! I think something stinks in here! I love the smell of flowers. How do you like the smell of flames?! Not as much. Water bug! Not taking sides! Ken, I'm wearing a Chapstick hat! This is pathetic! I've got issues! Well, well, well, a royal flush! - You're bluffing. - Am I? Surf's up, dude! Poo water! That bowl is gnarly. Except for those dirty yellow rings! Kenneth! What are you doing?! You know, I don't even like honey! I don't eat it! We need to talk! He's just a little bee! And he happens to be the nicest bee I've met in a long time! Long time? What are you talking about?! Are there other bugs in your life? No, but there are other things bugging me in life. And you're one of them! Fine! Talking bees, no yogurt night... My nerves are fried from riding on this emotional roller coaster! Goodbye, Ken. And for your information, I prefer sugar-free, artificial sweeteners made by man! I'm sorry about all that. I know it's got an aftertaste! I like it! I always felt there was some kind of barrier between Ken and me. I couldn't overcome it. Oh, well. Are you OK for the trial? I believe Mr. Montgomery is about out of ideas. We would like to call Mr. Barry Benson Bee to the stand. Good idea! You can really see why he's considered one of the best lawyers... Yeah. Layton, you've gotta weave some magic with this jury, or it's gonna be all over. Don't worry. The only thing I have to do to turn this jury around is to remind them of what they don't like about bees. - You got the tweezers? - Are you allergic? Only to losing, son. Only to losing. Mr. Benson Bee, I'll ask you what I think we'd all like to know. What exactly is your relationship to that woman? We're friends. - Good friends? - Yes. How good? Do you live together? Wait a minute... Are you her little... ...bedbug? I've seen a bee documentary or two. From what I understand, doesn't your queen give birth to all the bee children? - Yeah, but... - So those aren't your real parents! - Oh, Barry... - Yes, they are! Hold me back! You're an illegitimate bee, aren't you, Benson? He's denouncing bees! Don't y'all date your cousins? - Objection! - I'm going to pincushion this guy! Adam, don't! It's what he wants! Oh, I'm hit!! Oh, lordy, I am hit! Order! Order! The venom! The venom is coursing through my veins! I have been felled by a winged beast of destruction! You see? You can't treat them like equals! They're striped savages! Stinging's the only thing they know! It's their way! - Adam, stay with me. - I can't feel my legs. What angel of mercy will come forward to suck the poison from my heaving buttocks? I will have order in this court. Order! Order, please! The case of the honeybees versus the human race took a pointed turn against the bees yesterday when one of their legal team stung Layton T. Montgomery. - Hey, buddy. - Hey. - Is there much pain? - Yeah. I... I blew the whole case, didn't I? It doesn't matter. What matters is you're alive. You could have died. I'd be better off dead. Look at me. They got it from the cafeteria downstairs, in a tuna sandwich. Look, there's a little celery still on it. What was it like to sting someone? I can't explain it. It was all... All adrenaline and then... and then ecstasy! All right. You think it was all a trap? Of course. I'm sorry. I flew us right into this. What were we thinking? Look at us. We're just a couple of bugs in this world. What will the humans do to us if they win? I don't know. I hear they put the roaches in motels. That doesn't sound so bad. Adam, they check in, but they don't check out! Oh, my. Could you get a nurse to close that window? - Why? - The smoke. Bees don't smoke. Right. Bees don't smoke. Bees don't smoke! But some bees are smoking. That's it! That's our case! It is? It's not over? Get dressed. I've gotta go somewhere. Get back to the court and stall. Stall any way you can. And assuming you've done step correctly, you're ready for the tub. Mr. Flayman. Yes? Yes, Your Honor! Where is the rest of your team? Well, Your Honor, it's interesting. Bees are trained to fly haphazardly, and as a result, we don't make very good time. I actually heard a funny story about... Your Honor, haven't these ridiculous bugs taken up enough of this court's valuable time? How much longer will we allow these absurd shenanigans to go on? They have presented no compelling evidence to support their charges against my clients, who run legitimate businesses. I move for a complete dismissal of this entire case! Mr. Flayman, I'm afraid I'm going to have to consider Mr. Montgomery's motion. But you can't! We have a terrific case. Where is your proof? Where is the evidence? Show me the smoking gun! Hold it, Your Honor! You want a smoking gun? Here is your smoking gun. What is that? It's a bee smoker! What, this? This harmless little contraption? This couldn't hurt a fly, let alone a bee. Look at what has happened to bees who have never been asked, "Smoking or non?" Is this what nature intended for us? To be forcibly addicted to smoke machines and man-made wooden slat work camps? Living out our lives as honey slaves to the white man? - What are we gonna do? - He's playing the species card. Ladies and gentlemen, please, free these bees! Free the bees! Free the bees! Free the bees! Free the bees! Free the bees! The court finds in favor of the bees! Vanessa, we won! I knew you could do it! High-five! Sorry. I'm OK! You know what this means? All the honey will finally belong to the bees. Now we won't have to work so hard all the time. This is an unholy perversion of the balance of nature, Benson. You'll regret this. Barry, how much honey is out there? All right. One at a time. Barry, who are you wearing? My sweater is Ralph Lauren, and I have no pants. - What if Montgomery's right? - What do you mean? We've been living the bee way a long time, 27 million years. Congratulations on your victory. What will you demand as a settlement? First, we'll demand a complete shutdown of all bee work camps. Then we want back the honey that was ours to begin with, every last drop. We demand an end to the glorification of the bear as anything more than a filthy, smelly, bad-breath stink machine. We're all aware of what they do in the woods. Wait for my signal. Take him out. He'll have nauseous for a few hours, then he'll be fine. And we will no longer tolerate bee-negative nicknames... But it's just a prance-about stage name! ...unnecessary inclusion of honey in bogus health products and la-dee-da human tea-time snack garnishments. Oan't breathe. Bring it in, boys! Hold it right there! Good. Tap it. Mr. Buzzwell, we just passed three cups, and there's gallons more coming! - I think we need to shut down! - Shut down? We've never shut down. Shut down honey production! Stop making honey! Turn your key, sir! What do we do now? Cannonball! We're shutting honey production! Mission abort. Aborting pollination and nectar detail. Returning to base. Adam, you wouldn't believe how much honey was out there. Oh, yeah? What's going on? Where is everybody? - Are they out celebrating? - They're home. They don't know what to do. Laying out, sleeping in. I heard your Uncle Carl was on his way to San Antonio with a cricket. At least we got our honey back. Sometimes I think, so what if humans liked our honey? Who wouldn't? It's the greatest thing in the world! I was excited to be part of making it. This was my new desk. This was my new job. I wanted to do it really well. And now... Now I can't. I don't understand why they're not happy. I thought their lives would be better! They're doing nothing. It's amazing. Honey really changes people. You don't have any idea what's going on, do you? - What did you want to show me? - This. What happened here? That is not the half of it. Oh, no. Oh, my. They're all wilting. Doesn't look very good, does it? No. And whose fault do you think that is? You know, I'm gonna guess bees. Bees? Specifically, me. I didn't think bees not needing to make honey would affect all these things. It's not just flowers. Fruits, vegetables, they all need bees. That's our whole SAT test right there. Take away produce, that affects the entire animal kingdom. And then, of course... The human species? So if there's no more pollination, it could all just go south here, couldn't it? I know this is also partly my fault. How about a suicide pact? How do we do it? - I'll sting you, you step on me. - That just kills you twice. Right, right. Listen, Barry... sorry, but I gotta get going. I had to open my mouth and talk. Vanessa? Vanessa? Why are you leaving? Where are you going? To the final Tournament of Roses parade in Pasadena. They've moved it to this weekend because all the flowers are dying. It's the last chance I'll ever have to see it. Vanessa, I just wanna say I'm sorry. I never meant it to turn out like this. I know. Me neither. Tournament of Roses. Roses can't do sports. Wait a minute. Roses. Roses? Roses! Vanessa! Roses?! Barry? - Roses are flowers! - Yes, they are. Flowers, bees, pollen! I know. That's why this is the last parade. Maybe not. Could you ask him to slow down? Could you slow down? Barry! OK, I made a huge mistake. This is a total disaster, all my fault. Yes, it kind of is. I've ruined the planet. I wanted to help you with the flower shop. I've made it worse. Actually, it's completely closed down. I thought maybe you were remodeling. But I have another idea, and it's greater than my previous ideas combined. I don't want to hear it! All right, they have the roses, the roses have the pollen. I know every bee, plant and flower bud in this park. All we gotta do is get what they've got back here with what we've got. - Bees. - Park. - Pollen! - Flowers. - Repollination! - Across the nation! Tournament of Roses, Pasadena, California. They've got nothing but flowers, floats and cotton candy. Security will be tight. I have an idea. Vanessa Bloome, FTD. Official floral business. It's real. Sorry, ma'am. Nice brooch. Thank you. It was a gift. Once inside, we just pick the right float. How about The Princess and the Pea? I could be the princess, and you could be the pea! Yes, I got it. - Where should I sit? - What are you? - I believe I'm the pea. - The pea? It goes under the mattresses. - Not in this fairy tale, sweetheart. - I'm getting the marshal. You do that! This whole parade is a fiasco! Let's see what this baby'll do. Hey, what are you doing?! Then all we do is blend in with traffic... ...without arousing suspicion. Once at the airport, there's no stopping us. Stop! Security. - You and your insect pack your float? - Yes. Has it been in your possession the entire time? Would you remove your shoes? - Remove your stinger. - It's part of me. I know. Just having some fun. Enjoy your flight. Then if we're lucky, we'll have just enough pollen to do the job. Can you believe how lucky we are? We have just enough pollen to do the job! I think this is gonna work. It's got to work. Attention, passengers, this is Captain Scott. We have a bit of bad weather in New York. It looks like we'll experience a couple hours delay. Barry, these are cut flowers with no water. They'll never make it. I gotta get up there and talk to them. Be careful. Can I get help with the Sky Mall magazine? I'd like to order the talking inflatable nose and ear hair trimmer. Captain, I'm in a real situation. - What'd you say, Hal? - Nothing. Bee! Don't freak out! My entire species... What are you doing? - Wait a minute! I'm an attorney! - Who's an attorney? Don't move. Oh, Barry. Good afternoon, passengers. This is your captain. Would a Miss Vanessa Bloome in 24B please report to the cockpit? And please hurry! What happened here? There was a DustBuster, a toupee, a life raft exploded. One's bald, one's in a boat, they're both unconscious! - Is that another bee joke? - No! No one's flying the plane! This is JFK control tower, Flight 356. What's your status? This is Vanessa Bloome. I'm a florist from New York. Where's the pilot? He's unconscious, and so is the copilot. Not good. Does anyone onboard have flight experience? As a matter of fact, there is. - Who's that? - Barry Benson. From the honey trial?! Oh, great. Vanessa, this is nothing more than a big metal bee. It's got giant wings, huge engines. I can't fly a plane. - Why not? Isn't John Travolta a pilot? - Yes. How hard could it be? Wait, Barry! We're headed into some lightning. This is Bob Bumble. We have some late-breaking news from JFK Airport, where a suspenseful scene is developing. Barry Benson, fresh from his legal victory... That's Barry! ...is attempting to land a plane, loaded with people, flowers and an incapacitated flight crew. Flowers?! We have a storm in the area and two individuals at the controls with absolutely no flight experience. Just a minute. There's a bee on that plane. I'm quite familiar with Mr. Benson and his no-account compadres. They've done enough damage. But isn't he your only hope? Technically, a bee shouldn't be able to fly at all. Their wings are too small... Haven't we heard this a million times? "The surface area of the wings and body mass make no sense." - Get this on the air! - Got it. - Stand by. - We're going live. The way we work may be a mystery to you. Making honey takes a lot of bees doing a lot of small jobs. But let me tell you about a small job. If you do it well, it makes a big difference. More than we realized. To us, to everyone. That's why I want to get bees back to working together. That's the bee way! We're not made of Jell-O. We get behind a fellow. - Black and yellow! - Hello! Left, right, down, hover. - Hover? - Forget hover. This isn't so hard. Beep-beep! Beep-beep! Barry, what happened?! Wait, I think we were on autopilot the whole time. - That may have been helping me. - And now we're not! So it turns out I cannot fly a plane. All of you, let's get behind this fellow! Move it out! Move out! Our only chance is if I do what I'd do, you copy me with the wings of the plane! Don't have to yell. I'm not yelling! We're in a lot of trouble. It's very hard to concentrate with that panicky tone in your voice! It's not a tone. I'm panicking! I can't do this! Vanessa, pull yourself together. You have to snap out of it! You snap out of it. You snap out of it. - You snap out of it! - You snap out of it! - You snap out of it! - You snap out of it! - You snap out of it! - You snap out of it! - Hold it! - Why? Come on, it's my turn. How is the plane flying? I don't know. Hello? Benson, got any flowers for a happy occasion in there? The Pollen Jocks! They do get behind a fellow. - Black and yellow. - Hello. All right, let's drop this tin can on the blacktop. Where? I can't see anything. Can you? No, nothing. It's all cloudy. Come on. You got to think bee, Barry. - Thinking bee. - Thinking bee. Thinking bee! Thinking bee! Thinking bee! Wait a minute. I think I'm feeling something. - What? - I don't know. It's strong, pulling me. Like a 27-million-year-old instinct. Bring the nose down. Thinking bee! Thinking bee! Thinking bee! - What in the world is on the tarmac? - Get some lights on that! Thinking bee! Thinking bee! Thinking bee! - Vanessa, aim for the flower. - OK. Out the engines. We're going in on bee power. Ready, boys? Affirmative! Good. Good. Easy, now. That's it. Land on that flower! Ready? Full reverse! Spin it around! - Not that flower! The other one! - Which one? - That flower. - I'm aiming at the flower! That's a fat guy in a flowered shirt. I mean the giant pulsating flower made of millions of bees! Pull forward. Nose down. Tail up. Rotate around it. - This is insane, Barry! - This's the only way I know how to fly. Am I koo-koo-kachoo, or is this plane flying in an insect-like pattern? Get your nose in there. Don't be afraid. Smell it. Full reverse! Just drop it. Be a part of it. Aim for the center! Now drop it in! Drop it in, woman! Come on, already. Barry, we did it! You taught me how to fly! - Yes. No high-five! - Right. Barry, it worked! Did you see the giant flower? What giant flower? Where? Of course I saw the flower! That was genius! - Thank you. - But we're not done yet. Listen, everyone! This runway is covered with the last pollen from the last flowers available anywhere on Earth. That means this is our last chance. We're the only ones who make honey, pollinate flowers and dress like this. If we're gonna survive as a species, this is our moment! What do you say? Are we going to be bees, or just Museum of Natural History keychains? We're bees! Keychain! Then follow me! Except Keychain. Hold on, Barry. Here. You've earned this. Yeah! I'm a Pollen Jock! And it's a perfect fit. All I gotta do are the sleeves. Oh, yeah. That's our Barry. Mom! The bees are back! If anybody needs to make a call, now's the time. I got a feeling we'll be working late tonight! Here's your change. Have a great afternoon! Can I help who's next? Would you like some honey with that? It is bee-approved. Don't forget these. Milk, cream, cheese, it's all me. And I don't see a nickel! Sometimes I just feel like a piece of meat! I had no idea. Barry, I'm sorry. Have you got a moment? Would you excuse me? My mosquito associate will help you. Sorry I'm late. He's a lawyer too? I was already a blood-sucking parasite. All I needed was a briefcase. Have a great afternoon! Barry, I just got this huge tulip order, and I can't get them anywhere. No problem, Vannie. Just leave it to me. You're a lifesaver, Barry. Can I help who's next? All right, scramble, jocks! It's time to fly. Thank you, Barry! That bee is living my life! Let it go, Kenny. - When will this nightmare end?! - Let it all go. - Beautiful day to fly. - Sure is. Between you and me, I was dying to get out of that office. You have got to start thinking bee, my friend. - Thinking bee! - Me? Hold it. Let's just stop for a second. Hold it. I'm sorry. I'm sorry, everyone. Can we stop here? I'm not making a major life decision during a production number! All right. Take ten, everybody. Wrap it up, guys. I had virtually no rehearsal for that.`
+};
+
+var STEPS = ["Moving button","Captcha","Pet","Apology","Security form","Integral","Rhythm","Typing test","Terms","Done"];
+var INTEGRALS = [
+  {tex:"∫₀^{π/2} x² / sin²x dx", val:2.177586, ok:["piln2","ln2pi"]},
+  {tex:"∫₀¹ ln(x)·ln(1−x) dx", val:0.355066, ok:["2-pi^2/6"]},
+  {tex:"∫₀^{π/2} ln²(sin x) dx", val:2.04662, ok:["pi^3/24+piln2^2/2"]},
+  {tex:"∫₀^∞ x / sinh(x) dx", val:2.467401, ok:["pi^2/4"]},
+  {tex:"∫₀¹ ln²(x) / (1+x) dx", val:1.803085, ok:["3zeta3/2","3ζ3/2","1.5zeta3"]},
+  {tex:"∫₀¹ arctan(x) / x dx", val:0.915966, ok:["catalan"]},
+  {tex:"∫₀¹ arctan(√(x²+2)) / ((x²+1)√(x²+2)) dx", val:0.514042, ok:["5pi^2/96"]},
+  {tex:"∫₀^∞ (sin x / x)³ dx", val:1.178097, ok:["3pi/8"]},
+  {tex:"∫₀^∞ (sin x / x)⁴ dx", val:1.047198, ok:["pi/3"]},
+  {tex:"∫₀^{π/2} dx / (1 + tan(x)^√2)", val:0.785398, ok:["pi/4"]},
+  {tex:"∫₀^∞ sin(x²) dx", val:0.626657, ok:["sqrt(pi/8)"]},
+  {tex:"∫₀¹ x^x dx (decimal only, no closed form)", val:0.783431, ok:[]}
+];
+var INTEGRALS_OLD = [
+  {tex:"∫₀¹ ln(1+x)/x dx", val:0.822467, ok:["pi^2/12","π^2/12","π²/12"]},
+  {tex:"∫₀^∞ x/(eˣ − 1) dx", val:1.644934, ok:["pi^2/6","π^2/6","π²/6"]},
+  {tex:"∫₀^{π/2} ln(sin x) dx", val:-1.088793, ok:["-pi/2*ln2","-(pi/2)ln2","-(π/2)ln2","-π/2*ln2"]},
+  {tex:"∫₀^∞ e^(−x²) dx", val:0.886227, ok:["sqrt(pi)/2","√π/2"]}
+];
+var QUESTIONS = [
+  "Mother’s maiden name of your first pet",
+  "Shoe size of your childhood best friend’s favorite teacher",
+  "The last four digits of your dream’s phone number",
+  "Your grandfather’s favorite cloud",
+  "Name of the street your first Wi-Fi password grew up on",
+  "Color of the number 7 on a Tuesday",
+  "Your spirit animal’s mother’s maiden name",
+  "The airspeed velocity of your first lie",
+  "Middle name of the first sandwich you ever trusted",
+  "Your childhood imaginary friend’s credit score",
+  "The date of birth of your favorite Wednesday",
+  "Name of the doctor who delivered your oldest houseplant",
+  "Your dentist’s horoscope sign, rising and moon",
+  "The maiden name of your current Wi-Fi router",
+  "The weight, in grams, of your biggest regret",
+  "Your pet rock’s mother’s occupation",
+  "Which street corner your last good idea was born on",
+  "The flavor of your first password",
+  "The name of the ship your ancestors’ cat sailed on",
+  "The exact temperature of your first heartbreak, in kelvin",
+  "Your left shoe’s favorite song and its release year",
+  "The first name of the moon’s landlord",
+  "What your future self had for lunch yesterday",
+  "The license plate of your most trusted cloud",
+  "Your goldfish’s mother’s maiden name, but backwards",
+  "The zip code of your childhood nap",
+  "The name of the first spreadsheet that ever lied to you",
+  "Your Wi-Fi’s emergency contact",
+  "The color of your middle name"
+];
+var PET_NAMES = ["Biscuit","Waffles","Pixel","Nugget"];
+var PET_MSGS = [
+  "“Goodbye. I’ll be fine. (I won’t.)”",
+  "“Tell the new family I like belly rubs and loyalty.”",
+  "“I understood the pricing was too high. I just wanted to be your friend.”",
+  "“Please at least keep the password. I memorized it for you.”"
+];
+
+var S = {};
+var step = CFG.startStep;
+var startTime = Date.now(), lastMove = Date.now(), runnerTimer = null;
+var view = document.getElementById("view");
+var ov = document.getElementById("ov");
+
+function $(id){return document.getElementById(id)}
+function rnd(n){return Math.floor(Math.random()*n)}
+function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
+function setMsg(t,c){var m=$("msg");if(m){m.textContent=t;m.className="msg "+(c||"")}}
+
+function freshState(){
+  S = {
+    integral: INTEGRALS[rnd(INTEGRALS.length)],
+    questions: QUESTIONS.slice().sort(function(){return Math.random()-.5}).slice(0,3),
+    pet: PET_NAMES[rnd(PET_NAMES.length)],
+    petMsg: -1, captcha: ""
+  };
+}
+
+function reset(reason){
+  clearInterval(runnerTimer);
+  ov.textContent = reason + " Restarting from the beginning…";
+  ov.classList.add("on");
+  setTimeout(function(){
+    ov.classList.remove("on");
+    startTime = Date.now(); lastMove = Date.now();
+    freshState(); go(CFG.startStep); renderStart();
+  }, 1800);
+}
+
+function go(i){
+  clearInterval(runnerTimer);
+  if(step<0){ startTime=Date.now(); lastMove=Date.now(); }
+  step = i;
+  if(window.rkH){document.removeEventListener("keydown",window.rkH);window.rkH=null}
+  cancelAnimationFrame(window.rkRaf||0);
+  [renderMoving,renderCaptcha,renderPet,renderApology,renderForm,renderIntegral,renderRhythm,renderBee,renderToc,renderDone][i]();
+  var j = $("jumps"); j.innerHTML = "";
+  STEPS.forEach(function(n,k){
+    var b=document.createElement("button"); b.className="ghost"; b.textContent=(k+1)+"."+n;
+    if(k===step) b.style.borderColor="var(--ac)";
+    b.onclick=function(){go(k)}; j.appendChild(b);
+  });
+}
+
+function card(title, sub, body){
+  view.innerHTML = '<div class="card"><h2>'+title+'</h2><p class="sub">'+sub+'</p>'+body+'<div class="msg" id="msg"></div></div>';
+}
+
+// ===== Start screen: the innocent-looking account page =====
+function renderStart(){
+  clearInterval(runnerTimer); step=-1;
+  card("Your subscription","BeeHive Premium™ · $14.99/month · renews on the 1st",
+    '<p>Status: <b>Active</b><br>Perks: unlimited honey, daily streaks, one (1) account pet</p><div style="display:flex;gap:10px;flex-wrap:wrap"><button id="cn">Cancel?</button></div>');
+  $("cn").onclick=function(){ startTime=Date.now(); lastMove=Date.now(); go(CFG.startStep); };
+}
+
+// ===== Step 0: moving button =====
+function renderMoving(){
+  card("We’re sorry to see you consider leaving 😢","You’re about to lose all your streaks, perks, and our respect.",
+    '<button class="big" id="stay">Keep my amazing premium life ✨</button><div class="arena" id="arena"><button id="runner">cancel subscription</button></div>');
+  var r=$("runner"), a=$("arena");
+  function jump(){
+    r.style.left = rnd(a.clientWidth - r.offsetWidth) + "px";
+    r.style.top = rnd(a.clientHeight - r.offsetHeight) + "px";
+  }
+  r.onmouseenter = function(){ if(Math.random()<0.8) jump(); };
+  runnerTimer = setInterval(jump, 450);
+  r.onclick = function(){ go(1); };
+  $("stay").onclick = function(){ setMsg("Great choice! Now go back to being happy.","ok"); };
+}
+
+// ===== Step 1: captcha =====
+// ===== Step 1: captcha chain (2 random challenges from 4 types) =====
+var capI=0;
+function capNext(){ capI++; if(capI>=2) go(2); else renderCaptcha(true); }
+function renderCaptcha(cont){
+  cancelAnimationFrame(window.rkRaf||0);
+  if(!cont){ capI=0; S.caps=["text","grid","slider","bounce"].sort(function(){return Math.random()-.5}).slice(0,2); }
+  ({text:renderCaptchaOld,grid:capGrid,slider:capSlider,bounce:capBounce})[S.caps[capI]]();
+  setMsg("Challenge "+(capI+1)+" of 2");
+}
+function capGrid(){
+  var sets=[{n:"a sandwich",t:"🥪",d:["🍔","🌯","🥙","🌮","🍞","🥖","🫓","🥐"]},{n:"a bicycle",t:"🚲",d:["🛵","🏍️","🛴","🚴","🛹","🚜"]},{n:"a traffic light",t:"🚦",d:["🚥","🔴","🟢","🛑","🚧","🚨"]}];
+  var s=sets[rnd(sets.length)], k=3+rnd(3), cells=[], sel={};
+  for(var i=0;i<16;i++) cells.push(i<k?s.t:s.d[rnd(s.d.length)]);
+  cells.sort(function(){return Math.random()-.5});
+  card("Select all squares containing "+s.n,"There is no skip button. Partial credit does not exist.",'<div id="gr" style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-width:320px"></div><div style="margin-top:10px"><button id="ok">Verify</button></div>');
+  cells.forEach(function(e,i){
+    var b=document.createElement("button"); b.className="ghost"; b.textContent=e; b.style.cssText="font-size:34px;padding:6px;filter:blur(1.3px) contrast(.8)";
+    b.onclick=function(){ sel[i]=!sel[i]; b.style.borderColor=sel[i]?"var(--ac)":"var(--bd)"; b.style.background=sel[i]?"rgba(224,84,31,.25)":"transparent"; };
+    $("gr").appendChild(b);
+  });
+  $("ok").onclick=function(){
+    var good=cells.every(function(e,i){return (e===s.t)===!!sel[i]});
+    if(good) capNext(); else { setMsg("Incorrect. Try this new set.","bad"); renderCaptcha(true); setMsg("Incorrect. Try this new set.","bad"); }
+  };
+}
+function capSlider(){
+  var tg=+(10+Math.random()*80).toFixed(1);
+  card("Slide to exactly "+tg,"No value is shown. The slider is a little shy and nudges itself after you let go.",'<input type="range" id="sl" min="0" max="1000" value="0" style="padding:0"><div style="margin-top:10px"><button id="ok">Verify</button></div>');
+  var sl=$("sl");
+  function f(){ return 100*Math.pow(sl.value/1000,3); }
+  sl.onchange=function(){ sl.value=Math.min(1000,Math.max(0,+sl.value+rnd(13)-6)); };
+  $("ok").onclick=function(){ if(Math.abs(f()-tg)<0.6) capNext(); else setMsg("Not exact enough.","bad"); };
+}
+function capBounce(){
+  card("Type the moving letters","They get tired eventually. Case does not matter, mercifully.",'<canvas id="bc" width="320" height="160" style="width:100%;max-width:320px;border-radius:8px;border:2px solid var(--bd)"></canvas><div style="display:flex;gap:8px;margin-top:10px"><input id="cap" autocomplete="off" placeholder="letters"><button id="ok">Verify</button></div>');
+  var chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789", L=[], code="";
+  for(var i=0;i<6;i++){ var ch=chars[rnd(chars.length)]; code+=ch; L.push({c:ch,x:20+rnd(260),y:30+rnd(100),vx:(Math.random()-.5)*7,vy:(Math.random()-.5)*7,h:rnd(360)}); }
+  var cv=$("bc"), c=cv.getContext("2d");
+  function fr(){
+    if(!document.body.contains(cv)) return;
+    c.fillStyle="#d8d2c4"; c.fillRect(0,0,320,160);
+    L.forEach(function(l){
+      l.x+=l.vx; l.y+=l.vy; if(l.x<5||l.x>285) l.vx*=-1; if(l.y<30||l.y>150) l.vy*=-1; l.h=(l.h+3)%360;
+      c.font="34px monospace"; c.fillStyle="hsla("+l.h+",35%,55%,.7)"; c.fillText(l.c,l.x,l.y);
+    });
+    for(var k=0;k<6;k++){ c.strokeStyle="rgba("+rnd(180)+","+rnd(180)+","+rnd(180)+",.4)"; c.lineWidth=2; c.beginPath(); c.moveTo(rnd(320),rnd(160)); c.lineTo(rnd(320),rnd(160)); c.stroke(); }
+    window.rkRaf=requestAnimationFrame(fr);
+  }
+  fr();
+  $("ok").onclick=function(){ if($("cap").value.trim().toUpperCase()===code) capNext(); else { setMsg("Incorrect. Letters have been reshuffled.","bad"); renderCaptcha(true); setMsg("Incorrect. Letters have been reshuffled.","bad"); } };
+}
+function renderCaptchaOld(){
+  card("Verify you’re human","Type the characters. Case matters. Good luck.",
+    '<canvas id="cv" width="320" height="110" style="width:100%;max-width:320px;border-radius:8px;border:2px solid var(--bd)"></canvas>'+
+    '<div style="display:flex;gap:8px;margin-top:10px"><input id="cap" autocomplete="off" placeholder="characters"><button class="ghost" id="rf">↻</button><button id="ok">Verify</button></div>');
+  function draw(){
+    var chars="Il1O0oS5B8gq9Zz2", t="";
+    for(var i=0;i<7;i++) t+=chars[rnd(chars.length)];
+    S.captcha=t;
+    var c=$("cv").getContext("2d");
+    c.fillStyle="#d8d2c4"; c.fillRect(0,0,320,110);
+    for(var k=0;k<40;k++){
+      c.strokeStyle="rgba("+rnd(200)+","+rnd(200)+","+rnd(200)+",0.5)";
+      c.lineWidth=1+rnd(3); c.beginPath(); c.moveTo(rnd(320),rnd(110)); c.bezierCurveTo(rnd(320),rnd(110),rnd(320),rnd(110),rnd(320),rnd(110)); c.stroke();
+    }
+    for(var i2=0;i2<t.length;i2++){
+      c.save(); c.translate(20+i2*42, 55+rnd(30)-15); c.rotate((Math.random()-.5)*1.3);
+      c.font=(28+rnd(26))+"px "+["serif","monospace","cursive","sans-serif"][rnd(4)];
+      c.fillStyle="rgba(150,145,130,0.75)"; c.fillText(t[i2],0,0); c.restore();
+    }
+    for(var d=0;d<900;d++){ c.fillStyle="rgba("+rnd(255)+","+rnd(255)+","+rnd(255)+",0.35)"; c.fillRect(rnd(320),rnd(110),2,2); }
+  }
+  draw();
+  $("rf").onclick=draw;
+  $("ok").onclick=function(){
+    if($("cap").value===S.captcha) capNext();
+    else { setMsg("Incorrect. (It was probably obvious.)","bad"); draw(); $("cap").value=""; }
+  };
+}
+
+// ===== Step 2: pet rehoming =====
+function renderPet(){
+  card("Meet "+esc(S.pet)+", your account pet 🐹","If you leave, "+esc(S.pet)+" will be rehomed to a family of strangers. Choose a goodbye message.",
+    '<div class="pet" id="pf">🥺</div><div class="opts" id="po"></div><div style="margin-top:12px"><button id="ok" disabled>Confirm rehoming</button></div>');
+  var po=$("po");
+  PET_MSGS.forEach(function(m,i){
+    var b=document.createElement("button"); b.className="ghost"; b.textContent=m;
+    b.onclick=function(){
+      S.petMsg=i; [].forEach.call(po.children,function(x){x.className="ghost"}); b.className="sel";
+      $("pf").textContent=["😢","🥹","😭","😿"][i]; $("ok").disabled=false;
+    };
+    po.appendChild(b);
+  });
+  $("ok").onclick=function(){ $("pf").textContent="📦"; setMsg(S.pet+" is on a truck now. Hope you’re proud.","bad"); $("ok").disabled=true; setTimeout(function(){if(step===2){$("pf").textContent="🚚";setMsg(S.pet+" is on the highway now. Hope you’re proud.","bad")}},2500); setTimeout(function(){if(step===2){$("pf").textContent="🏡";setMsg(S.pet+" has been rehomed and is already forgetting you. Redirecting…","bad")}},5000); setTimeout(function(){if(step===2)go(3)},8000); };
+}
+
+// ===== AI helper (uses the artifact "sample" capability; falls back to a local heuristic) =====
+var samplePromise=null;
+function getSample(){
+  if(!samplePromise) samplePromise=(window.claude&&claude.use?claude.use("sample"):Promise.resolve(null)).catch(function(){return null});
+  return samplePromise;
+}
+var SUF='\nRespond ONLY with JSON: {"pass":true|false,"reason":"one sentence, snarky corporate tone"}';
+function gKey(){ return (CFG.geminiApiKey||$("gkey").value||"").trim(); }
+function via(n){ var e=$("aistat"); if(e) e.textContent="AI: "+n; }
+async function gFetch(path,opts){
+  var r=await fetch("https://generativelanguage.googleapis.com/v1beta/"+path,Object.assign({headers:{"Content-Type":"application/json","x-goog-api-key":gKey()}},opts));
+  if(!r.ok){ var m=""; try{ m=(await r.json()).error.message; }catch(e){} var er=new Error("HTTP "+r.status+(m?": "+m.slice(0,140):"")); er.status=r.status; throw er; }
+  return r.json();
+}
+async function pickModel(){
+  var j=await gFetch("models?pageSize=200");
+  var ms=(j.models||[]).filter(function(m){return (m.supportedGenerationMethods||[]).indexOf("generateContent")>=0&&/gemini/.test(m.name)&&!/(tts|image|live|audio|embed|robotics|computer|learnlm)/.test(m.name)});
+  var fl=ms.filter(function(m){return /flash/.test(m.name)&&!/(lite|8b|exp|preview)/.test(m.name)});
+  var pool=fl.length?fl:ms;
+  if(!pool.length) throw new Error("no usable model on this key");
+  pool.sort(function(a,b){return a.name<b.name?1:-1});
+  return pool[0].name.replace("models/","");
+}
+async function listModels(){
+  var j=await gFetch("models?pageSize=200");
+  var ms=(j.models||[]).filter(function(m){return (m.supportedGenerationMethods||[]).indexOf("generateContent")>=0&&/gemini/.test(m.name)&&!/(tts|image|live|audio|embed|robotics|computer|learnlm)/.test(m.name)}).map(function(m){return m.name.replace("models/","")});
+  var lite=ms.filter(function(n){return /flash/.test(n)&&/lite/.test(n)&&!/(exp|preview)/.test(n)}).sort().reverse();
+  var fl=ms.filter(function(n){return /flash/.test(n)&&!/(lite|8b|exp|preview)/.test(n)}).sort().reverse();
+  var rest=ms.filter(function(n){return /flash/.test(n)&&lite.indexOf(n)<0&&fl.indexOf(n)<0});
+  return lite.concat(fl,rest);
+}
+async function askGemini(prompt){
+  var body=JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:0.7}});
+  var first=($("gmodel").value||CFG.geminiModel).trim().replace(/^models\//,"");
+  var queue=[first], tried=[], list=null, lastErr=null;
+  while(queue.length && tried.length<6){
+    var m=queue.shift();
+    if(tried.indexOf(m)>=0) continue;
+    tried.push(m);
+    try{
+      var j=await gFetch("models/"+encodeURIComponent(m)+":generateContent",{method:"POST",body:body});
+      $("gmodel").value=m; try{ localStorage.setItem("gm",m); }catch(x){}
+      return JSON.parse(j.candidates[0].content.parts[0].text.replace(/```json|```/g,"").trim());
+    }catch(e){
+      lastErr=e;
+      if(e.status!==404&&e.status!==429) throw e;
+      if(!list){ try{ list=await listModels(); }catch(x){ throw e; } queue=queue.concat(list); }
+    }
+  }
+  throw new Error("All models tried ("+tried.join(", ")+") failed. Last: "+lastErr.message);
+}
+async function askGeminiV2(prompt){
+  var body=JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:0.7}});
+  var model=($("gmodel").value||CFG.geminiModel).trim().replace(/^models\//,""), j;
+  try{ j=await gFetch("models/"+encodeURIComponent(model)+":generateContent",{method:"POST",body:body}); }
+  catch(e){
+    if(e.status!==404) throw e;
+    model=await pickModel(); $("gmodel").value=model;
+    try{ localStorage.setItem("gm",model); }catch(x){}
+    j=await gFetch("models/"+encodeURIComponent(model)+":generateContent",{method:"POST",body:body});
+  }
+  return JSON.parse(j.candidates[0].content.parts[0].text.replace(/```json|```/g,"").trim());
+}
+async function askGeminiOld(prompt){
+  var model=($("gmodel").value||CFG.geminiModel).trim();
+  var r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(model)+":generateContent",{
+    method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":gKey()},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:0.7}})});
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  var j=await r.json();
+  return JSON.parse(j.candidates[0].content.parts[0].text.replace(/```json|```/g,"").trim());
+}
+async function judge(prompt, fallback){
+  if(gKey()){
+    try{ var g=await askGemini(prompt+SUF); if(g&&typeof g.pass==="boolean"){ via("Gemini"); return g; } }
+    catch(e){ via("Gemini failed ("+e.message+")"); }
+  }
+  try{
+    var s=await getSample();
+    if(s){ var res=await s.json(prompt+SUF,{modelTier:"quick",cache:false}); if(res&&typeof res.pass==="boolean"){ if(!gKey()) via("Claude"); return res; } }
+  }catch(e){}
+  if(!gKey()) via("local check");
+  return fallback();
+}
+try{ var _k=localStorage.getItem("gk"); if(_k) $("gkey").value=_k; var _m=localStorage.getItem("gm"); if(_m) $("gmodel").value=_m; }catch(e){}
+try{ var _b=localStorage.getItem("bee"); if(false){ CFG.beeScript=_b; $("bres").textContent="Loaded "+_b.length+" characters (saved in this browser)"; } }catch(e){}
+$("bfile").onchange=function(){
+  var f=this.files[0]; if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    var t=String(rd.result).replace(/\s+/g," ").trim();
+    CFG.beeScript=t;
+    try{ localStorage.setItem("bee",t); }catch(e){}
+    $("bres").textContent="Loaded "+t.length+" characters";
+    if(step===7) go(7);
+  };
+  rd.readAsText(f);
+};
+if($("gear")) $("gear").onclick=function(){ var s=$("set"); s.style.display=s.style.display==="none"?"block":"none"; };
+$("gsave").onclick=function(){ try{ localStorage.setItem("gk",$("gkey").value.trim()); localStorage.setItem("gm",$("gmodel").value.trim()); }catch(e){} $("gres").textContent="Saved"; };
+$("gtest").onclick=async function(){
+  $("gres").textContent="Testing…";
+  try{ var g=await askGemini('Return exactly {"pass":true,"reason":"ok"}'); $("gres").textContent=g&&g.pass?"Gemini works ✓":"Unexpected reply"; }
+  catch(e){ $("gres").textContent="Failed: "+e.message; }
+};
+async function judgeOld(prompt, fallback){
+  try{
+    var s=await getSample();
+    if(!s) return fallback();
+    var res=await s.json(prompt+'\nRespond ONLY with JSON: {"pass":true|false,"reason":"one sentence, snarky corporate tone"}',{modelTier:"quick",cache:false});
+    if(res&&typeof res.pass==="boolean") return res;
+  }catch(e){}
+  return fallback();
+}
+
+// ===== Step 3: apology letter =====
+function renderApology(){
+  card("Write a formal apology to BeeHive","Begin with “Dear BeeHive,”. Minimum "+CFG.minApology+" characters. Our AI will judge sincerity. Insincere letters restart the entire process.",
+    '<textarea id="tx" placeholder="Dear BeeHive, I’m sorry I’m leaving…"></textarea><div class="sub" id="cnt">0 / '+CFG.minApology+'</div><button id="ok" disabled>Submit apology</button>');
+  var tx=$("tx"), ok=$("ok");
+  tx.oninput=function(){ var n=tx.value.length; $("cnt").textContent=n+" / "+CFG.minApology; ok.disabled=n<CFG.minApology; };
+  ok.onclick=async function(){
+    ok.disabled=true; setMsg("Our sincerity analyst is reading your letter…");
+    var t=tx.value;
+    var r=await judge("You are a dramatic, hard-to-please judge for a subscription app called BeeHive. A user is leaving and wrote this apology letter. Decide if it is genuinely sincere and heartfelt (specific, remorseful, not sarcastic, not copy-pasted filler or gibberish). Letter:\n\"\"\"\n"+t+"\n\"\"\"",
+      function(){ var uniq=new Set(t.toLowerCase().split(/\s+/)).size; return {pass:uniq>25&&/sorry|apolog/i.test(t),reason:"Not enough feeling detected."}; });
+    if(r.pass){ setMsg("Accepted. "+r.reason,"ok"); setTimeout(function(){go(4)},1500); }
+    else { setMsg("Insincere. "+r.reason,"bad"); setTimeout(function(){reset("Your apology was judged insincere.")},2200); }
+  };
+}
+
+// ===== Step 4: nonsense form =====
+function renderForm(){
+  var f=S.questions.map(function(q,i){return '<label>'+esc(q)+'</label><input id="f'+i+'" autocomplete="off">'}).join("");
+  card("Security verification","Answer all fields. An AI will judge whether your answers are acceptable.",f+'<div style="margin-top:12px"><button id="ok">Submit</button></div>');
+  $("ok").onclick=async function(){
+    if(S.questions.some(function(q,i){return !$("f"+i).value.trim()})){ setMsg("All fields are required.","bad"); return; }
+    var ans=S.questions.map(function(q,i){return q+" → "+$("f"+i).value});
+    $("ok").disabled=true; setMsg("Verifying…");
+    var r=await judge("You are an absurd, pedantic bureaucrat verifying identity with nonsensical security questions. The questions have no real answers, so judge whether each answer is creative, specific, and plausible-sounding rather than lazy (e.g. 'idk', 'asdf', one-word shrugs, repeated answers). Pass only if all three are convincing:\n"+ans.join("\n"),
+      function(){ var ok=S.questions.every(function(q,i){return $("f"+i).value.trim().length>=8}); return {pass:ok,reason:ok?"Fine.":"One of your answers is not convincing."}; });
+    if(r.pass){ setMsg("Verified. "+r.reason,"ok"); setTimeout(function(){go(5)},1200); }
+    else { setMsg("Rejected. "+r.reason,"bad"); $("ok").disabled=false; }
+  };
+}
+
+// ===== Step 5: integral =====
+function renderIntegral(){
+  card("Prove you’re worth keeping: calculus edition","Evaluate this integral. Enter a decimal accurate to 3 places, or the closed form (e.g. pi^2/12).",
+    '<div style="font-size:26px;text-align:center;margin:16px 0;font-family:ui-monospace,Menlo,monospace">'+S.integral.tex+'</div><input id="ans" autocomplete="off" placeholder="answer"><div style="margin-top:12px"><button id="ok">Submit</button></div>');
+  $("ok").onclick=function(){
+    var raw=$("ans").value.trim().toLowerCase().replace(/\s+/g,"");
+    var good=false;
+    if(/^-?\d*\.?\d+$/.test(raw) && Math.abs(parseFloat(raw)-S.integral.val)<0.001) good=true;
+    if(S.integral.ok.some(function(a){return a.toLowerCase().replace(/\s+/g,"")===raw})) good=true;
+    var nm=function(s){return s.toLowerCase().replace(/π/g,"pi").replace(/²/g,"^2").replace(/³/g,"^3").replace(/√/g,"sqrt").replace(/−/g,"-").replace(/[\s*()·]/g,"")};
+    good=(/^-?\d*\.?\d+$/.test(raw)&&Math.abs(parseFloat(raw)-S.integral.val)<0.001)||S.integral.ok.some(function(a){return nm(a)===nm(raw)});
+    if(good) go(6);
+    else setMsg("Wrong. Maybe if you’d stayed subscribed you’d have access to our Calculus Add-On™.","bad");
+  };
+}
+
+// ===== Step 6: rhythm game =====
+function renderRhythm(){
+  card("Dance-off: prove you have rhythm 🎵","Hit D F J K (or click the lanes) as each note reaches the line. "+Math.round(CFG.rhythmPass*100)+"% accuracy to continue.",
+    '<canvas id="rc" width="320" height="420" style="width:100%;max-width:320px;display:block;margin:0 auto;border:2px solid var(--bd);border-radius:10px"></canvas><div style="text-align:center;margin-top:10px"><button id="rgo">Start song</button></div>');
+  var cv=$("rc"), c=cv.getContext("2d"), KEYS=["d","f","j","k"], HIT=360, FALL=1.4;
+  var cs=getComputedStyle(document.documentElement), FG=cs.getPropertyValue("--fg").trim(), AC=cs.getPropertyValue("--ac").trim(), BD=cs.getPropertyValue("--bd").trim(), BG=cs.getPropertyValue("--bg").trim();
+  var t0=0, notes=[], hits=0, combo=0, flash=[0,0,0,0], running=false;
+  function now(){ return (performance.now()-t0)/1000; }
+  function beep(f){ try{ var A=window.AC2||(window.AC2=new (window.AudioContext||window.webkitAudioContext)()); var o=A.createOscillator(), g=A.createGain(); o.frequency.value=f; g.gain.value=0.08; o.connect(g); g.connect(A.destination); o.start(); o.stop(A.currentTime+0.08); }catch(e){} }
+  function press(l){
+    if(!running) return;
+    var t=now(), best=null;
+    notes.forEach(function(n){ if(n.l===l&&!n.done&&Math.abs(n.t-t)<0.16&&(!best||Math.abs(n.t-t)<Math.abs(best.t-t))) best=n; });
+    flash[l]=1;
+    if(best){ best.done=1; hits++; combo++; beep([262,330,392,523][l]); } else combo=0;
+  }
+  function frame(){
+    var t=now();
+    c.fillStyle=BG; c.fillRect(0,0,320,420);
+    for(var l=0;l<4;l++){
+      c.fillStyle=BD; c.globalAlpha=0.25+0.5*flash[l]; c.fillRect(l*80+2,0,76,420); c.globalAlpha=1; flash[l]=Math.max(0,flash[l]-0.08);
+      c.fillStyle=FG; c.font="16px monospace"; c.textAlign="center"; c.fillText(KEYS[l].toUpperCase(),l*80+40,405);
+    }
+    c.fillStyle=AC; c.fillRect(0,HIT,320,4);
+    notes.forEach(function(n){
+      if(!n.done && t>n.t+0.16){ n.done=1; combo=0; }
+      if(n.done) return;
+      var y=HIT-(n.t-t)/FALL*HIT;
+      if(y>-20&&y<430){ c.fillStyle=AC; c.fillRect(n.l*80+10,y-10,60,20); }
+    });
+    c.fillStyle=FG; c.textAlign="left"; c.font="14px monospace"; c.fillText("hits "+hits+"/"+notes.length+"  combo "+combo,8,18);
+    if(t>notes[notes.length-1].t+0.8){ finish(); return; }
+    window.rkRaf=requestAnimationFrame(frame);
+  }
+  function finish(){
+    running=false;
+    var acc=hits/notes.length, pct=Math.round(acc*100);
+    if(acc>=CFG.rhythmPass){ setMsg("Accuracy "+pct+"%. Fine. You may proceed.","ok"); setTimeout(function(){ if(step===6) go(7); },1500); }
+    else { setMsg("Accuracy "+pct+"%. Not good enough. Again.","bad"); $("rgo").disabled=false; $("rgo").textContent="Try again"; }
+  }
+  $("rgo").onclick=function(){
+    notes=[]; hits=0; combo=0; setMsg("");
+    for(var i=0;i<28;i++) notes.push({t:2+i*0.45,l:rnd(4),done:0});
+    $("rgo").disabled=true; running=true; t0=performance.now();
+    window.rkRaf=requestAnimationFrame(frame);
+  };
+  window.rkH=function(e){ var i=KEYS.indexOf(e.key.toLowerCase()); if(i>=0){ e.preventDefault(); press(i); } };
+  document.addEventListener("keydown",window.rkH);
+  cv.onpointerdown=function(e){ lastMove=Date.now(); var r=cv.getBoundingClientRect(); press(Math.min(3,Math.floor((e.clientX-r.left)/r.width*4))); };
+}
+
+// ===== Step 7: typing test =====
+function renderBee(){
+  card("Final verification: type the entire Bee Movie script from memory","",
+    '<textarea id="tx" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea><div id="cnt" style="display:none"></div><button id="ok">Submit</button>');
+  var tx=$("tx");
+  ["paste","drop"].forEach(function(e){tx.addEventListener(e,function(ev){ev.preventDefault();setMsg("Nice try.","bad")})});
+  tx.oninput=function(){ $("cnt").textContent=tx.value.length+" / "+CFG.beeScript.length+" characters"; };
+  tx.oninput();
+  $("ok").onclick=function(){
+    if(tx.value===CFG.beeScript) go(8);
+    else setMsg("Incorrect.","bad");
+  };
+}
+
+// ===== Step 7: terms =====
+function renderToc(){
+  var bits=["The User acknowledges that the Service is provided on an as-is and as-available basis.","Section headings are for convenience only and have no legal effect whatsoever.","The Company may modify these Terms at any time, retroactively, spiritually, or both.","All honey remains the property of the Company in perpetuity.","The User waives all rights to complain, including but not limited to groaning audibly.","Any dispute shall be settled by interpretive dance before a panel of three bees.","Refunds may be issued in the form of exposure, goodwill, or a heartfelt thank-you.","The User agrees to receive notifications about notifications."];
+  var html="", target=30+rnd(30);
+  for(var i=0;i<70;i++){
+    var p=""; for(var j=0;j<3;j++) p+=bits[rnd(bits.length)]+" ";
+    if(i===target){ var ws=p.split(" "); ws.splice(2+rnd(ws.length-5),0,'<span id="hid">cancel</span>'); p=ws.join(" "); }
+    html+="<p><b>§"+(i+1)+".</b> "+p+"</p>";
+  }
+  card("Read the Terms &amp; Conditions to continue","To find the cancel button, scroll through all 70 sections. It’s in there, in plain text. Honest.",'<div class="toc" id="toc">'+html+'</div>');
+  $("toc").addEventListener("click",function(e){ if(e.target&&e.target.id==="hid") go(9); });
+}
+
+// ===== Step 8: done =====
+function renderDone(){
+  card("Cancellation request received 🎉","Your request will be processed within 6–8 business decades.",
+    '<p>A retention specialist (a very sad bee) will call you at 3:14 AM to ask why.</p><p><b>'+esc(S.pet)+'</b> has been placed on a farm upstate. We send photos.</p><button id="again">Start over</button>');
+  $("again").onclick=function(){ startTime=Date.now(); lastMove=Date.now(); freshState(); go(CFG.startStep); renderStart(); };
+}
+
+// ===== timers =====
+function fmt(s){ return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2); }
+setInterval(function(){
+  if($("pause").checked){ startTime=Date.now(); lastMove=Date.now(); return; }
+  if(ov.classList.contains("on")||step===9||step<0) return;
+  var left=Math.max(0,CFG.totalSeconds-Math.floor((Date.now()-startTime)/1000));
+  var idle=Math.max(0,CFG.idleSeconds-Math.floor((Date.now()-lastMove)/1000));
+  var tt=$("tTotal"), ti=$("tIdle");
+  tt.textContent=fmt(left); tt.className=left<30?"low":"";
+  ti.textContent="idle "+idle; ti.className=idle<5?"low":"";
+  if(left<=0) reset("Time’s up! You took longer than 5 minutes.");
+  else if(idle<=0) reset("Idle timeout: we noticed your mouse got lonely.");
+}, 250);
+document.addEventListener("mousemove",function(){lastMove=Date.now()});
+document.addEventListener("touchstart",function(){lastMove=Date.now()});
+document.addEventListener("keydown",function(){ if(CFG.keyboardCountsAsActive) lastMove=Date.now(); });
+
+freshState();
+go(CFG.startStep);
+renderStart();
+</script>
+</body>
+</html>
